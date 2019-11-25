@@ -54,8 +54,11 @@ public class LoginController implements Initializable {
  
     }
     
-    public boolean validateLogin(String username, String password) throws SQLException {
+    public void validateLogin() throws SQLException {
         //FIXME: implement mySQL checks
+        String username = loginUsernameTextField.getText();
+        String password = loginPasswordTextField.getText();
+        
         try {
             //Validate username
             String sql;
@@ -66,13 +69,11 @@ public class LoginController implements Initializable {
             
             if ( rs.wasNull() ) {
                 welcomeLabel.setText(errorMessage);
-                return false;
             }  
           
         } catch (SQLException e) {
             welcomeLabel.setText("Error code:1 A mySQL exception occurred.");
         }
-        return true;
     }
    
     public void initialize(URL url, ResourceBundle rb) {

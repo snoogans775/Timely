@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane id="AnchorPane" prefHeight="600.0" prefWidth="400.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ViewController.LoginController">
+    <children>
+      <VBox alignment="CENTER" prefHeight="100.0" prefWidth="400.0">
+         <children>
+            <Label fx:id="loginHeaderTextField" alignment="CENTER" text="Calendr">
+               <font>
+                  <Font name="Tahoma" size="83.0" />
+               </font>
+            </Label>
+         </children>
+      </VBox>
+      <VBox layoutY="100.0" prefHeight="100.0" prefWidth="400.0">
+         <children>
+            <Label fx:id="welcomeLabel" textFill="#da0000" wrapText="true">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Label>
+         </children>
+         <padding>
+            <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+         </padding>
+      </VBox>
+      <VBox fx:id="loginPrompt" layoutY="200.0" prefHeight="200.0" prefWidth="400.0" spacing="20.0">
+         <children>
+            <TextField fx:id="loginUsernameTextField" promptText="Username">
+               <font>
+                  <Font size="24.0" />
+               </font>
+            </TextField>
+            <TextField fx:id="loginPasswordTextField" promptText="Password">
+               <font>
+                  <Font size="24.0" />
+               </font>
+            </TextField>
+         </children>
+         <padding>
+            <Insets left="40.0" right="40.0" />
+         </padding>
+      </VBox>
+      <VBox fx:id="loginControl" alignment="BOTTOM_CENTER" layoutY="500.0" minHeight="100.0" prefWidth="400.0">
+         <children>
+            <Button fx:id="loginSubmitButton" mnemonicParsing="false" onAction="#validateLogin" prefWidth="400.0" text="Login">
+               <font>
+                  <Font size="48.0" />
+               </font>
+            </Button>
+         </children>
+      </VBox>
+    </children>
+</AnchorPane>
