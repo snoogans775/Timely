@@ -21,7 +21,7 @@
       </VBox>
       <VBox layoutY="100.0" prefHeight="100.0" prefWidth="400.0">
          <children>
-            <Label fx:id="welcomeLabel" textFill="#da0000" wrapText="true">
+            <Label fx:id="welcomeLabel" alignment="TOP_LEFT" textFill="#da0000" wrapText="true">
                <font>
                   <Font size="14.0" />
                </font>
@@ -50,7 +50,7 @@
       </VBox>
       <VBox fx:id="loginControl" alignment="BOTTOM_CENTER" layoutY="500.0" minHeight="100.0" prefWidth="400.0">
          <children>
-            <Button fx:id="loginSubmitButton" mnemonicParsing="false" onAction="#validateLogin" prefWidth="400.0" text="Login">
+            <Button fx:id="loginSubmitButton" mnemonicParsing="false" onAction="#loadEventsView" prefWidth="400.0" text="Login">
                <font>
                   <Font size="48.0" />
                </font>
