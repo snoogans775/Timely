@@ -5,6 +5,7 @@
  */
 package ViewController;
 
+import CalendarApp.Lambda;
 import DB.Query;
 import DB.Session;
 import Model.Appointment;
@@ -30,12 +31,12 @@ public class AddEventController implements Initializable {
     @FXML TextField eventURLTextField;
     
     @FXML DatePicker eventStartDatePicker;
-    @FXML ChoiceBox eventStartTimeComboBox;
-    @FXML ChoiceBox eventDurationComboBox;
+    @FXML ComboBox eventStartTimeComboBox;
+    @FXML ComboBox eventDurationComboBox;
     ObservableList<LocalTime> timeChoices = FXCollections.observableArrayList();
     ObservableList<Duration> durationChoices = FXCollections.observableArrayList();
     
-    @FXML ChoiceBox eventCustomerChoiceBox;
+    @FXML ComboBox eventCustomerComboBox;
 
     @FXML Button eventSaveButton;
     @FXML Button eventCancelButton;
@@ -53,15 +54,27 @@ public class AddEventController implements Initializable {
         
         //Populate timeChoice ComboBox with times
         LocalTime timeIndex = LocalTime.of(0, 0);
-        Duration timeOffset = Duration.ofMinutes(0);
         Duration halfHour = Duration.ofMinutes(30);
 
-        for( int i = 0; i < 24; i++ ) {
+        for( int i = 0; i < 48; i++ ) {
             timeChoicesList.add(timeIndex);
-            timeOffset.plus(halfHour);
+            timeIndex = timeIndex.plus(halfHour);
         }
         
         return timeChoicesList;
+    }
+    
+    public ObservableList<Duration> generateDurations() {
+        ObservableList<Duration> durationChoices = FXCollections.observableArrayList();
+        
+        
+        //FIXME: represent as a String of minutes in combobox
+        //Populate with limited choices
+        durationChoices.add( Duration.ofMinutes(15) );
+        durationChoices.add( Duration.ofMinutes(30) );
+        durationChoices.add( Duration.ofMinutes(60) );
+        
+        return durationChoices;
     }
     
     
@@ -76,16 +89,24 @@ public class AddEventController implements Initializable {
         this.currentUser = s.getCurrentUser();
         System.out.println( "The current user is: " + currentUser.getUserName() );
     }
-    /*
+
     public void addEvent() {
         
         //Create star Date Time for Date and Time components
-        LocalDate selectedDate = eventStartDatePicker.getValue();
-        LocalTime selectedTime = eventStartTimeChoiceBox.getValue();
+        LocalDateTime convertedDateTime;
+        LocalDateTime calculatedEndTime;
+        Duration eventDuration;
         
-        LocalDateTime eventStartDateTime = LocalDateTime.of(eventStartDatePicker.getValue(), )
+        LocalDate selectedDate = eventStartDatePicker.getValue();
+        LocalTime selectedTime = (LocalTime) eventStartTimeComboBox.getValue();
+        
+                
+        eventDuration = (Duration) eventDurationComboBox.getValue();
+        convertedDateTime = LocalDateTime.of(selectedDate, selectedTime);
+        calculatedEndTime = convertedDateTime.plus( eventDuration );
         
         Appointment appt = new Appointment(
+            0,
             0, //FIXME: implement getAllCustomers for ChoiceBox and return selection by id
             currentUser.getUserId(),
             eventTitleTextField.getText(),
@@ -94,21 +115,22 @@ public class AddEventController implements Initializable {
             eventContactTextField.getText(),
             eventTypeTextField.getText(),
             eventURLTextField.getText(),
-            eventStartDatePicker.getValue(),
-            eventEndDatePicker.getValue(),
+            convertedDateTime,
+            calculatedEndTime,
             LocalDateTime.now(),
             currentUser.getUserName(),
             LocalDateTime.now(),
-            currentUser.getUserName())
+            currentUser.getUserName()
         );
         
-        Query.updateAppointment(currentUser, appt);
+        Query.updateAppointment(currentUser, conn);
     }
-    */
+
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         
         eventStartTimeComboBox.setItems(generateTimes());
+        eventDurationComboBox.setItems(generateDurations());
         
     }    
     
