@@ -31,26 +31,9 @@ public class Query {
 
     //BEGIN METHODS
     
-    //Time Conversion
-    public static Timestamp getTimestampFromString(String timeString) throws ParseException {
-        
-        Timestamp timestamp = new java.sql.Timestamp(0);
-        
-        try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss:SSS");
-            Date parsedDate = dateFormat.parse( timeString );
-            timestamp = new java.sql.Timestamp( parsedDate.getTime() );
-            
-            return timestamp;
-        } catch (Exception e) {
-            System.out.println("Timestamp conversion failed.");
-        }
-        
-        return timestamp;
-
-    }
-    
-    //Getters
+    //
+    //EVENT METHODS
+    //
     
     public static ObservableList<Event> getAllEventsByUserId(User user, Connection conn) throws SQLException {
         
@@ -87,35 +70,7 @@ public class Query {
         return eventList;
 
     }
-    
-    public static Customer getCustomerById(int id, Connection conn) throws SQLException {
-        
-        Customer customer = null;
-        
-        String sql = "SELECT * FROM customer where customerId = " + "'" + id + "'";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        ResultSet rs = stmt.executeQuery(sql);
-        
-        if( rs.absolute(1) ) {
-        customer = new Customer(
-            rs.getInt("customerid"),
-            rs.getString("customerName"),
-            rs.getInt("addressId"),
-            rs.getInt("active"),
-            rs.getTimestamp("createDate"),
-            rs.getString("createdBy"),
-            rs.getTimestamp("lastUpdate"),
-            rs.getString("lastUpdateBy")
-            );
-        }
-        
-        return customer;
-        
-        
-    }
-    
-    //Database Update Methods
-    
+
     public static void addAppointment(Appointment appt, Connection conn) throws SQLException {
         String sql = 
             "INSERT INTO appointment("
@@ -160,7 +115,7 @@ public class Query {
             + "createdBy = '" + appt.getCreatedBy() + "', "
             + "lastUpdate = '" + appt.getLastUpdate() + "', "
             + "lastUpdateBy = '" + appt.getLastUpdateBy() + "' "
-            + "WHERE appointmentId = " + appt.getAppointmentid();
+            + "WHERE appointmentid = " + appt.getAppointmentid();
 
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.executeUpdate(sql);
@@ -186,6 +141,33 @@ public class Query {
     //
     //CUSTOMER METHODS
     //
+    
+    public static Customer getCustomerById(int id, Connection conn) throws SQLException {
+        
+        Customer customer = null;
+        
+        String sql = "SELECT * FROM customer where customerId = " + "'" + id + "'";
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery(sql);
+        
+        if( rs.absolute(1) ) {
+        customer = new Customer(
+            rs.getInt("customerid"),
+            rs.getString("customerName"),
+            rs.getInt("addressId"),
+            rs.getInt("active"),
+            rs.getTimestamp("createDate"),
+            rs.getString("createdBy"),
+            rs.getTimestamp("lastUpdate"),
+            rs.getString("lastUpdateBy")
+            );
+        }
+        
+        return customer;
+        
+        
+    }
+
     
     public static ObservableList<Customer> getAllCustomers(Connection conn) throws SQLException {
         ObservableList<Customer> customerList = FXCollections.observableArrayList();
@@ -214,17 +196,11 @@ public class Query {
     
     public static void addCustomer(Customer customer, Connection conn) throws SQLException {
         String sql = 
-            "INSERT INTO appointment("
+            "INSERT INTO customer("
             + "customerId, "
-            + "userId, "
-            + "title, "
-            + "description, "
-            + "location, "
-            + "contact, "
-            + "type, "
-            + "url, "
-            + "start, "
-            + "end, "
+            + "customerName, "
+            + "addressId, "
+            + "active, "
             + "createDate, "
             + "createdBy, "
             + "lastUpdate, "
@@ -239,8 +215,36 @@ public class Query {
 
     }
     
-    public static void deleteCustomer(Customer customer, Connection conn) {
+    public static void updateCustomer(Customer customer, Connection conn) throws SQLException {
+        String sql = 
+            "UPDATE customer SET "
+            + "customerName = '" + customer.getCustomerName() + "', "
+            + "addressId = " + customer.getAddressId() + ", "
+            + "active = " + customer.getActive() + ", "
+            + "createDate = '" + customer.getCreateDate() + "', "
+            + "createdBy = '" + customer.getCreatedBy() + "', "
+            + "lastUpdate = '" + customer.getLastUpdate() + "', "
+            + "lastUpdateBy = '" + customer.getLastUpdateBy() + "' "
+            + "WHERE customerid = " + customer.getCustomerid();
+
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.executeUpdate(sql);
+
+            System.out.println( stmt.executeUpdate() + " rows updated.");
+
+    }
+    
+    public static void deleteCustomer(Customer customer, Connection conn) throws SQLException {
         
+        String sql = "DELETE FROM customer WHERE customerid = "
+            + customer.getCustomerid()
+            + " LIMIT 1";
+        
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        stmt.executeUpdate();
+        
+        System.out.println(sql);
+        System.out.println( stmt.executeUpdate() + " rows updated.");
         
         
     }
@@ -306,21 +310,50 @@ public class Query {
         Country country = new Country();
         
         try {
-            String sql = "SELECT * FROM country WHERE country = '"+ countryName + "' LIMIT 1";
+            String sql = "SELECT * FROM country WHERE country = '"+ countryName + "'";
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery(sql);
 
             if( rs.next() ) {
 
-                Timestamp createDate = getTimestampFromString( rs.getString("createDate") );
-                Timestamp lastUpdate = getTimestampFromString( rs.getString("lastUpdate") );
+                country = new Country(
+                    rs.getInt("countryid"),
+                    rs.getString("country"),
+                    rs.getTimestamp("createDate"),
+                    rs.getString("createdBy"),
+                    rs.getTimestamp("lastUpdate"),
+                    rs.getString("lastUpdateBy")
+
+                );  
+            }
+            
+            
+        } catch (Exception e) {
+            
+            System.out.println("Failed to retrieve getCountryByName result.");
+        }
+        
+        return country;
+
+    }
+    
+    public static Country getCountryById(int id, Connection conn) throws SQLException, ParseException {
+        
+        Country country = new Country();
+        
+        try {
+            String sql = "SELECT * FROM country WHERE countryid = "+ id + " LIMIT 1";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery(sql);
+
+            if( rs.next() ) {
 
                 country = new Country(
                     rs.getInt("countryid"),
                     rs.getString("country"),
-                    createDate,
+                    rs.getTimestamp("createDate"),
                     rs.getString("createdBy"),
-                    lastUpdate,
+                    rs.getTimestamp("lastUpdate"),
                     rs.getString("lastUpdateBy")
 
                 );  
@@ -357,7 +390,6 @@ public class Query {
         
             String sql = 
             "INSERT INTO city("
-            + "cityid, "
             + "city, "
             + "countryId, "
             + "createDate, "
@@ -379,22 +411,19 @@ public class Query {
         City city = new City();
         
         try {
-            String sql = "SELECT * FROM country WHERE city = '" + cityName + "' LIMIT 1";
+            String sql = "SELECT * FROM city WHERE city = '" + cityName + "' LIMIT 1";
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery(sql);
 
-            if( rs.next() ) {
-
-                Timestamp createDate = getTimestampFromString( rs.getString("createDate") );
-                Timestamp lastUpdate = getTimestampFromString( rs.getString("lastUpdate") );
+            while( rs.next() ) {
 
                 city = new City(
                     rs.getInt("cityid"),
                     rs.getString("city"),
                     rs.getInt("countryId"),
-                    createDate,
+                    rs.getTimestamp("createDate"),
                     rs.getString("createdBy"),
-                    lastUpdate,
+                    rs.getTimestamp("lastUpdate"),
                     rs.getString("lastUpdateBy")
 
                 );  
@@ -403,11 +432,42 @@ public class Query {
             
         } catch (Exception e) {
             
-            System.out.println("Failed to retrieve getCountryByName result.");
+            System.out.println("Failed to retrieve getCityByName result.");
         }
         
         return city;
+    }
+    
+    public static City getCityById(Integer id, Connection conn) throws SQLException, ParseException {
+        
+        City city = new City();
+        
+        try {
+            String sql = "SELECT * FROM city WHERE cityid = " + id + " LIMIT 1";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery(sql);
 
+            while( rs.next() ) {
+
+                city = new City(
+                    rs.getInt("cityid"),
+                    rs.getString("city"),
+                    rs.getInt("countryId"),
+                    rs.getTimestamp("createDate"),
+                    rs.getString("createdBy"),
+                    rs.getTimestamp("lastUpdate"),
+                    rs.getString("lastUpdateBy")
+
+                );  
+            }
+            
+            
+        } catch (Exception e) {
+            
+            System.out.println("Failed to retrieve getCityByName result.");
+        }
+        
+        return city;
     }
     
     public static void addAddress(Address address, Connection conn) throws SQLException {
@@ -438,14 +498,11 @@ public class Query {
         Address address = new Address();
         
         try {
-            String sql = "SELECT * FROM country WHERE address = " + addressFirstLine + " LIMIT 1";
+            String sql = "SELECT * FROM address WHERE address = '" + addressFirstLine + "' LIMIT 1";
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery(sql);
 
             if( rs.next() ) {
-
-                Timestamp createDate = getTimestampFromString( rs.getString("createDate") );
-                Timestamp lastUpdate = getTimestampFromString( rs.getString("lastUpdate") );
 
                 address = new Address(
                     rs.getInt("addressid"),
@@ -454,9 +511,9 @@ public class Query {
                     rs.getInt("cityId"),
                     rs.getString("postalCode"),
                     rs.getString("phone"),
-                    createDate,
+                    rs.getTimestamp("createDate"),
                     rs.getString("createdBy"),
-                    lastUpdate,
+                    rs.getTimestamp("lastUpdate"),
                     rs.getString("lastUpdateBy")
 
                 );  
@@ -471,4 +528,41 @@ public class Query {
         return address;
 
     }
+    
+    public static Address getAddressById(int id, Connection conn) throws SQLException, ParseException {
+        
+        Address address = new Address();
+        
+        try {
+            String sql = "SELECT * FROM address WHERE addressid = " + id + " LIMIT 1";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery(sql);
+
+            if( rs.next() ) {
+
+                address = new Address(
+                    rs.getInt("addressid"),
+                    rs.getString("address"),
+                    rs.getString("address2"),
+                    rs.getInt("cityId"),
+                    rs.getString("postalCode"),
+                    rs.getString("phone"),
+                    rs.getTimestamp("createDate"),
+                    rs.getString("createdBy"),
+                    rs.getTimestamp("lastUpdate"),
+                    rs.getString("lastUpdateBy")
+
+                );  
+            }
+            
+            
+        } catch (Exception e) {
+            
+            System.out.println("Failed to retrieve Address result.");
+        }
+        
+        return address;
+
+    }
+
 }
