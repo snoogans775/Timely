@@ -5,21 +5,43 @@
  */
 package ViewController;
 
+import CalendarApp.EventException;
 import CalendarApp.Lambda;
 import DB.Query;
 import DB.Session;
+import DB.mySQLConnection;
 import Model.Appointment;
+import static Model.Appointment.*;
+import Model.Customer;
 import Model.Event;
 import Model.User;
+import java.io.IOException;
 import java.net.URL;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.ResourceBundle;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Alert.AlertType;
+import javafx.stage.Stage;
 
 public class AddEventController implements Initializable {
     
@@ -40,10 +62,13 @@ public class AddEventController implements Initializable {
 
     @FXML Button eventSaveButton;
     @FXML Button eventCancelButton;
+    
+    //Get connection object for all other scenes
+    Connection conn = mySQLConnection.getConnection();
 
     //Create instances for session class
-    Session session = new Session();
-    User currentUser = session.getCurrentUser();
+    Session session;
+    User currentUser;
     
     
     //
@@ -65,16 +90,75 @@ public class AddEventController implements Initializable {
     }
     
     public ObservableList<Duration> generateDurations() {
-        ObservableList<Duration> durationChoices = FXCollections.observableArrayList();
+        ObservableList<Duration> allChoices = FXCollections.observableArrayList();
         
         
         //FIXME: represent as a String of minutes in combobox
         //Populate with limited choices
-        durationChoices.add( Duration.ofMinutes(15) );
-        durationChoices.add( Duration.ofMinutes(30) );
-        durationChoices.add( Duration.ofMinutes(60) );
+        allChoices.add( Duration.ofMinutes(15) );
+        allChoices.add( Duration.ofMinutes(30) );
+        allChoices.add( Duration.ofMinutes(60) );
         
-        return durationChoices;
+        //Simple lambda iterator
+        //This lambda is intended as a debugging tool
+        //In this case, it does not accomodate any significant performance
+        //improvement. It is only here as syntactical sugar.
+        allChoices.forEach( dur -> System.out.println( dur.toString()) );
+        
+        return allChoices;
+    }
+    
+    //
+    //BEGIN CONTROL METHODS
+    //
+    
+    public ObservableList<Customer> generateCustomers() throws SQLException {
+        
+        ObservableList<Customer> customerList = Query.getAllCustomers(conn);
+        
+        return customerList;
+    }
+    
+    public void saveButtonPushed(ActionEvent event) throws IOException, SQLException {
+        
+        try { 
+            
+            addEvent();
+            
+        } catch (SQLException e) {
+
+        }
+            
+            //Change Scene to event view
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation( getClass().getResource("/ViewController/Event.fxml") );
+            Parent parent = loader.load();
+            Scene addParentScene = new Scene(parent);
+
+            EventController controller = loader.getController();
+            controller.initSession( session );
+
+            Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
+            window.setScene(addParentScene);
+            window.show();
+          
+    }
+    
+    public void cancelButtonPushed(ActionEvent event) throws IOException, SQLException {
+
+        //Change Scene to event view
+        FXMLLoader loader = new FXMLLoader();
+        loader.setLocation( getClass().getResource("/ViewController/Event.fxml") );
+        Parent parent = loader.load();
+        Scene addParentScene = new Scene(parent);
+        
+        EventController controller = loader.getController();
+        controller.initSession( session );
+
+        Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
+        window.setScene(addParentScene);
+        window.show();
+          
     }
     
     
@@ -87,50 +171,85 @@ public class AddEventController implements Initializable {
     public void initSession(Session s) throws SQLException {
         this.session = s;
         this.currentUser = s.getCurrentUser();
-        System.out.println( "The current user is: " + currentUser.getUserName() );
+        
     }
 
-    public void addEvent() {
+    public void addEvent() throws NullPointerException, SQLException {
         
-        //Create star Date Time for Date and Time components
-        LocalDateTime convertedDateTime;
-        LocalDateTime calculatedEndTime;
-        Duration eventDuration;
+        try {
         
-        LocalDate selectedDate = eventStartDatePicker.getValue();
-        LocalTime selectedTime = (LocalTime) eventStartTimeComboBox.getValue();
-        
-                
-        eventDuration = (Duration) eventDurationComboBox.getValue();
-        convertedDateTime = LocalDateTime.of(selectedDate, selectedTime);
-        calculatedEndTime = convertedDateTime.plus( eventDuration );
-        
-        Appointment appt = new Appointment(
-            0,
-            0, //FIXME: implement getAllCustomers for ChoiceBox and return selection by id
-            currentUser.getUserId(),
-            eventTitleTextField.getText(),
-            eventDescriptionTextField.getText(),
-            eventLocationTextField.getText(),
-            eventContactTextField.getText(),
-            eventTypeTextField.getText(),
-            eventURLTextField.getText(),
-            convertedDateTime,
-            calculatedEndTime,
-            LocalDateTime.now(),
-            currentUser.getUserName(),
-            LocalDateTime.now(),
-            currentUser.getUserName()
-        );
-        
-        Query.updateAppointment(currentUser, conn);
-    }
+            //Create objects for Date and Time components
+            LocalDateTime startDateTime;
+            LocalDateTime endDateTime;
+            Duration eventDuration;
 
+            //Get values from input
+            LocalDate selectedDate = eventStartDatePicker.getValue();
+            LocalTime selectedTime = (LocalTime) eventStartTimeComboBox.getValue();
+            startDateTime = LocalDateTime.of(selectedDate, selectedTime);
+
+            //Get Duration and DateTime objects from input and caculate end time        
+            eventDuration = (Duration) eventDurationComboBox.getValue();
+            endDateTime = startDateTime.plus( eventDuration );
+
+            //Convert all objects to sql.Timestamp
+            Timestamp startTime = Timestamp.valueOf(startDateTime);
+            Timestamp endTime = Timestamp.valueOf(endDateTime);
+            
+            //Use partial constructor to check business hours
+            Appointment checkAppt = new Appointment(startTime, endTime);
+            //Check for business hours restriction
+            if ( checkForBusinessHours(checkAppt) ) throw new EventException("Please schedule within business hours.");
+
+            
+            //Get customer id from selected object
+            Customer selectedCustomer = (Customer)eventCustomerComboBox.getValue();
+
+            Appointment appt = new Appointment(
+                0,
+                selectedCustomer.getCustomerid(),
+                currentUser.getUserId(),
+                eventTitleTextField.getText(),
+                eventDescriptionTextField.getText(),
+                eventLocationTextField.getText(),
+                eventContactTextField.getText(),
+                eventTypeTextField.getText(),
+                eventURLTextField.getText(),
+                startTime,
+                endTime,
+                Timestamp.from( Instant.now() ),
+                currentUser.getUserName(),
+                Timestamp.from( Instant.now()  ),
+                currentUser.getUserName()
+            );
+            
+            //Check for scheduling conflicts
+            
+            if ( checkForConflict(appt, currentUser, conn) ) throw new EventException("Schedule conflict found. Add event failed.");
+            else Query.addAppointment(appt, conn);
+
+
+        } catch (EventException e) {
+            Alert a = new Alert(AlertType.ERROR);
+            a.setContentText( e.getMessage() );
+            a.show();
+        }
+
+    }
+ 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         
-        eventStartTimeComboBox.setItems(generateTimes());
-        eventDurationComboBox.setItems(generateDurations());
+        try {
+            
+            eventStartTimeComboBox.setItems( generateTimes() );
+            eventDurationComboBox.setItems( generateDurations() );
+            eventCustomerComboBox.setItems( generateCustomers() );
+            
+        } catch (SQLException ex) {
+            
+            Logger.getLogger(AddEventController.class.getName()).log(Level.SEVERE, null, ex);
+        }
         
     }    
     
