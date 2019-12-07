@@ -191,17 +191,29 @@ public class AddEventController implements Initializable {
             //Get Duration and DateTime objects from input and caculate end time        
             eventDuration = (Duration) eventDurationComboBox.getValue();
             endDateTime = startDateTime.plus( eventDuration );
-
+            
+            //TIMEZONE CONVERSION
+            Timestamp startTimestamp = convertToTimestamp(startDateTime, currentUser);
+            Timestamp endTimestamp = convertToTimestamp(endDateTime, currentUser);
+            
+            /*
+            //The user ZoneId will be applied to startTime and endTime
+            ZoneId userZoneId= currentUser.getTimezone().toZoneId();
+            
+            //Convert LocalDateTime to ZonedDateTime objects
+            ZonedDateTime zonedStartTime = startDateTime.atZone(userZoneId);
+            zonedStartTime = ZonedDateTime.ofInstant(zonedStartTime.toInstant(), ZoneId.of("UTC"));
+            
+            ZonedDateTime zonedEndTime = endDateTime.atZone(userZoneId);
+            zonedEndTime = ZonedDateTime.ofInstant(zonedEndTime.toInstant(), ZoneId.of("UTC"));
+            
             //Convert all objects to sql.Timestamp
-            Timestamp startTime = Timestamp.valueOf(startDateTime);
-            Timestamp endTime = Timestamp.valueOf(endDateTime);
+            //The offset from UTC will be baked in to this value
+            Timestamp startTime = Timestamp.valueOf( zonedStartTime.toLocalDateTime() );
+            Timestamp endTime = Timestamp.valueOf( zonedEndTime.toLocalDateTime() );
             
-            //Use partial constructor to check business hours
-            Appointment checkAppt = new Appointment(startTime, endTime);
-            //Check for business hours restriction
-            if ( checkForBusinessHours(checkAppt) ) throw new EventException("Please schedule within business hours.");
-
             
+            */
             //Get customer id from selected object
             Customer selectedCustomer = (Customer)eventCustomerComboBox.getValue();
 
@@ -215,17 +227,28 @@ public class AddEventController implements Initializable {
                 eventContactTextField.getText(),
                 eventTypeTextField.getText(),
                 eventURLTextField.getText(),
-                startTime,
-                endTime,
+                startTimestamp,
+                endTimestamp,
                 Timestamp.from( Instant.now() ),
                 currentUser.getUserName(),
                 Timestamp.from( Instant.now()  ),
                 currentUser.getUserName()
             );
             
-            //Check for scheduling conflicts
+            //Use partial constructor to check business hours
+            //FIXME: Change Event.checkForBusinessHours to accept two LocalDateTimes instead of Even object
+            Appointment checkAppt = new Appointment(
+                    Timestamp.valueOf(startDateTime), 
+                    Timestamp.valueOf(endDateTime) 
+            );
+            if ( checkForBusinessHours(checkAppt) ) throw new EventException(
+                    "Please schedule within business hours."
+            );
             
-            if ( checkForConflict(appt, currentUser, conn) ) throw new EventException("Schedule conflict found. Add event failed.");
+            //Check for scheduling conflicts
+            if ( checkForConflict(appt, currentUser, conn) ) throw new EventException(
+                    "Schedule conflict found. Add event failed."
+            );
             else Query.addAppointment(appt, conn);
 
 
