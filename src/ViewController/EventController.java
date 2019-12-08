@@ -4,12 +4,20 @@ import DB.Session;
 import DB.*;
 import Model.*;
 import java.io.IOException;
+import static java.lang.Math.floor;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.Duration;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
+import java.time.*;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
 import java.util.ResourceBundle;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.*;
@@ -34,6 +42,12 @@ public class EventController implements Initializable {
     @FXML Button editEventButton;
     @FXML Button deleteEventButton;
     
+    //Month and Week view control
+    @FXML DatePicker monthViewDatePicker;
+    @FXML DatePicker weekViewDatePicker;
+    @FXML Button monthviewButton;
+    @FXML Button weekViewButton;
+    
     //Navigation bar
     @FXML Button eventViewButton;
     @FXML Button customerViewButton;
@@ -48,25 +62,31 @@ public class EventController implements Initializable {
     //BEGIN DATA METHODS
     //
     
-    //Receive Session data
-    
     public void initSession(Session s) throws SQLException {
+        //Summary:    Receive Session data and initiate the scene
+        //Arguments:  The defined session
+        //Returns:    void
+        
         this.session = s;
         this.currentUser = s.getCurrentUser();
-        System.out.println( "The current user is: " + currentUser.getUserName() );
+        System.out.println( "The current user timezone is: " + currentUser.getTimezone() );
         
-        initTableView( currentUser );
+        initTableView();
         
+        //Alert user of upcoming events
         alertUpcomingEvent(currentUser, Duration.ofMinutes(15), conn);
+        
     }
     
-    public void initTableView(User user) throws SQLException {
+    public void initTableView() throws SQLException {
+        //Summary: Loads events for user into tableview
+        //Arguments: The current user
+        //Returns: void
         
         if( session != null ) {
             ObservableList<Event> appointments;
-            appointments = Query.getAllEventsByUserId(user, conn);
+            appointments = Query.getAllEventsByUserId(currentUser, conn); //Timezone conversion included
 
-            //FIXME: convert customer id to customer name
             eventTableView.setItems( appointments );
             
         } else System.out.println("No session found.");
@@ -76,7 +96,7 @@ public class EventController implements Initializable {
         
         //Summary: checks if any upcoming events are
         //starting between now() and now() + duration
-        
+        //Arguments: The current user, the duration to check for upcoming apopintments, and the connection
         //Returns: boolean if an upcoming appointment is found
         boolean upcomingAppt = false;
         
@@ -87,8 +107,17 @@ public class EventController implements Initializable {
         //search all appointments for apptStart.between( now, now + duration )
         ObservableList<Event> allEvents = Query.getAllEventsByUserId(user, conn);
         
-        Query.process( allEvents, limit, (e,d) -> {
-            if( e.isAfter(now) && e.isBefore(limit) ) {
+        //Lambda function
+        //This is not a great use case for a lambda
+        //However, this does demonstrate abstraction of an
+        //Event and a LocalDateTime in to a functional method.
+        
+        //Query.listAndTimeConsumer accepts a List<Event> and a LocalDateTime
+        //and it performs an iterative comparsion on all members of the List
+        Query.listAndTimeConsumer( allEvents, limit, (e,d) -> {
+            LocalDateTime eStart = e.getStart().toLocalDateTime();
+            
+            if( eStart.isAfter(now) && eStart.isBefore(limit) ) {
                 Alert a = new Alert(AlertType.INFORMATION);
                 a.setContentText("Upcoming Appointment at " + e.toString());
                 a.show();
@@ -145,8 +174,73 @@ public class EventController implements Initializable {
         
         Query.deleteAppointment(appt, conn);
         
-        initTableView(currentUser);
+        initTableView();
         
+    }
+    
+    public void monthButtonPushed(ActionEvent event) throws IOException, SQLException {
+        
+        //Summary: Removes items from eventTableView that do not meet month criteria
+        //Arguments: ActionEvent of button. Pulls selection from monthDatePicker
+        //Returns: void
+        //Comment: This code is very verbose to avoid complexity. The predicates
+        //can be combined in to on e filter to reduce the method footprint.
+        
+        //Get selected month from comboBox
+        LocalDate monthDate =  monthViewDatePicker.getValue();
+
+        //Create Predicates for testing date values
+        Predicate<Event> monthFilter = (Event e) -> {
+            return e.getStart().toLocalDateTime().getMonth() != monthDate.getMonth();
+        };
+        Predicate<Event> yearFilter = (Event e) -> {
+            return e.getStart().toLocalDateTime().getYear() != monthDate.getYear();
+        };
+        
+        //Get appointments from mySQL database
+        ObservableList<Event> appointments = Query.getAllEventsByUserId(currentUser, conn);
+        
+        //Remove appointments where month != DatePicker month
+        appointments.removeIf( monthFilter );
+        appointments.removeIf( yearFilter );
+        
+        //Update tablevIew
+        eventTableView.setItems(appointments);
+    }
+    
+    public void weekButtonPushed(ActionEvent event) throws IOException, SQLException {
+        
+        //Summary: Removes items from eventTableView that do not meet month criteria
+        //Arguments: ActionEvent of button. Pulls selection from monthDatePicker
+        //Returns: void
+        //Comment: This code is very verbose to avoid complexity. The predicates
+        //can be combined in to on e filter to reduce the method footprint.
+        
+        //Get selected month from comboBox
+        LocalDate weekDate =  weekViewDatePicker.getValue();
+
+        //Create Predicates for testing date values
+        Predicate<Event> weekFilter = (Event e) -> {
+            return getWeek(e.getStart().toLocalDateTime().toLocalDate() ) 
+                   != getWeek( weekDate );
+        };
+        Predicate<Event> monthFilter = (Event e) -> {
+            return e.getStart().toLocalDateTime().getMonth() != weekDate.getMonth();
+        };
+        Predicate<Event> yearFilter = (Event e) -> {
+            return e.getStart().toLocalDateTime().getYear() != weekDate.getYear();
+        };
+        
+        //Get appointments from mySQL database
+        ObservableList<Event> appointments = Query.getAllEventsByUserId(currentUser, conn);
+        
+        //Remove appointments where month != DatePicker month
+        appointments.removeIf( weekFilter );
+        appointments.removeIf( monthFilter );
+        appointments.removeIf( yearFilter );
+        
+        //Update tablevIew
+        eventTableView.setItems(appointments);
     }
     
     public void customerButtonPushed(ActionEvent event) throws IOException, SQLException {
@@ -165,7 +259,27 @@ public class EventController implements Initializable {
         window.show();        
         
     }
-
+    
+    //
+    //TIME METHODS
+    //
+    
+    public int getWeek( LocalDate date ) {
+        
+        //Summary: Retrieves an integer value representing the week of the month
+        //Arguments: A LocalDate
+        //Returns: An integer from 1 to 4
+       
+        //Create a calendar object from instant
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(date.getDayOfYear(), date.getDayOfMonth(), date.getDayOfMonth() );
+        
+        int weekOfMonth = calendar.get(Calendar.WEEK_OF_MONTH);
+        
+        return weekOfMonth;
+    }
+        
+    @Override
     public void initialize(URL url, ResourceBundle rb) {
         
         //TableView for Customers
@@ -175,6 +289,7 @@ public class EventController implements Initializable {
         eventCustomerColumn.setCellValueFactory( new PropertyValueFactory<>("customerId"));
         eventStartColumn.setCellValueFactory( new PropertyValueFactory<>("start"));
         eventEndColumn.setCellValueFactory( new PropertyValueFactory<>("end"));
+        
         
     }    
     
