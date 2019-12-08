@@ -5,6 +5,7 @@
  */
 package ViewController;
 
+import CalendarApp.EventException;
 import DB.Query;
 import DB.Session;
 import DB.mySQLConnection;
@@ -17,6 +18,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
@@ -31,6 +33,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
 
 public class AddCustomerController implements Initializable {
@@ -55,82 +58,108 @@ public class AddCustomerController implements Initializable {
     //BEGIN METHODS
     //
     
+    //BEGIN DATE METHODS
+        
+    public void initSession(Session session) throws SQLException {
+
+        this.session = session;
+        this.currentUser = session.getCurrentUser();
+        
+    }
+    
     //BEGIN CONTROL METHODS
     
     public void saveButtonPushed(ActionEvent event) throws SQLException, ParseException, IOException {
         
-        //Get country from input
-        String countryString = customerCountryComboBox.getValue().toString();
-        Country countryObject = Query.getCountryByName( countryString, conn);
-        
-        //Add city
-        String city = customerCityTextField.getText();
-        
-        Query.addCity( new City(
-            0, //Placeholder cityid
-            customerCityTextField.getText(), //city
-            countryObject.getCountryid(),  //countryid
-            Timestamp.from( Instant.now() ),  //createDate
-            currentUser.getUserName(),  //createdBy
-            Timestamp.from( Instant.now()  ),  //lastUpdate
-            currentUser.getUserName()  //lastUpdateBy      
+        try {
+            
+            //Get country from input
+            String countryString = customerCountryComboBox.getValue().toString();
+            Country countryObject = Query.getCountryByName( countryString, conn);
 
-        ), conn);
-        
-        City cityObject = Query.getCityByName(city, conn);
-        
-        //Add address      
-        String address = customerAddressTextField.getText();
-        Query.addAddress( new Address(
-            0, //All java objects have a placeholder primary id
-            address,
-            customerAddressLineTwoTextField.getText(),
-            cityObject.getCityid(), //CityId
-            customerPostalCodeTextField.getText(),
-            customerPhoneTextField.getText(),
-            Timestamp.from( Instant.now() ),
-            currentUser.getUserName(),
-            Timestamp.from( Instant.now()  ),
-            currentUser.getUserName()
-                
-        ), conn);
-        
-        //The addressid is AUTO_INCREMENT in the database.
-        //So the object id must be a get from the SQL database. 
-        Address addressObject = Query.getAddressByFirstLine( address, conn );
-        
-        //Create customer with address id
-        
-        //Convert adtive checkbox to int
-        Integer activeValue;
-        activeValue = customerActiveCheckBox.isSelected() ? 1 : 0;
-        
-        Customer customer = new Customer(
-            0,
-            customerNameTextField.getText(),
-            addressObject.getAddressid(),
-            activeValue,
-            Timestamp.from( Instant.now() ),
-            currentUser.getUserName(),
-            Timestamp.from( Instant.now()  ),
-            currentUser.getUserName()
-        );
-        
-        Query.addCustomer(customer, conn);
-        
-        //Change Scene to customer view
-        FXMLLoader loader = new FXMLLoader();
-        loader.setLocation( getClass().getResource("/ViewController/Customer.fxml") );
-        Parent parent = loader.load();
-        Scene addParentScene = new Scene(parent);
-        
-        CustomerController controller = loader.getController();
-        controller.initSession( session );
+            //Add city
+            String city = customerCityTextField.getText();
 
-        Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
-        window.setScene(addParentScene);
-        window.show();
-        
+            Query.addCity( new City(
+                0, //Placeholder cityid
+                customerCityTextField.getText(), //city
+                countryObject.getCountryid(),  //countryid
+                Timestamp.from( Instant.now() ),  //createDate
+                currentUser.getUserName(),  //createdBy
+                Timestamp.from( Instant.now()  ),  //lastUpdate
+                currentUser.getUserName()  //lastUpdateBy      
+
+            ), conn);
+
+            City cityObject = Query.getCityByName(city, conn);
+
+            //Add address      
+            String address = customerAddressTextField.getText();
+            Query.addAddress( new Address(
+                0, //All java objects have a placeholder primary id
+                address,
+                customerAddressLineTwoTextField.getText(),
+                cityObject.getCityid(), //CityId
+                customerPostalCodeTextField.getText(),
+                customerPhoneTextField.getText(),
+                Timestamp.from( Instant.now() ),
+                currentUser.getUserName(),
+                Timestamp.from( Instant.now()  ),
+                currentUser.getUserName()
+
+            ), conn);
+
+            //The addressid is AUTO_INCREMENT in the database.
+            //So the object id must be a get from the SQL database. 
+            Address addressObject = Query.getAddressByFirstLine( address, conn );
+
+            //Create customer with address id
+
+            //Convert adtive checkbox to int
+            Integer activeValue;
+            activeValue = customerActiveCheckBox.isSelected() ? 1 : 0;
+
+            Customer customer = new Customer(
+                0,
+                customerNameTextField.getText(),
+                addressObject.getAddressid(),
+                activeValue,
+                Timestamp.from( Instant.now() ),
+                currentUser.getUserName(),
+                Timestamp.from( Instant.now()  ),
+                currentUser.getUserName()
+            );
+
+            List<String> allFields = getAllFields();
+
+            //Check if any of the fields are empty
+            if ( !allFields.contains("")) Query.addCustomer(customer, conn);
+            else throw new EventException("Please provide complete customer information.");
+
+            //Change Scene to customer view
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation( getClass().getResource("/ViewController/Customer.fxml") );
+            Parent parent = loader.load();
+            Scene addParentScene = new Scene(parent);
+
+            CustomerController controller = loader.getController();
+            controller.initSession( session );
+
+            Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
+            window.setScene(addParentScene);
+            window.show();
+            
+        } catch (EventException e) {
+            
+            Alert a = new Alert(AlertType.ERROR);
+            a.setContentText( e.getMessage() );
+            a.show();
+        } catch (NullPointerException e) {
+            
+            Alert a = new Alert(AlertType.ERROR);
+            a.setContentText("Please provide a country.");
+            a.show();
+        }
     }
     
     public void cancelButtonPushed(ActionEvent event) throws IOException, SQLException {
@@ -170,6 +199,22 @@ public class AddCustomerController implements Initializable {
         return address;
     }
     
+    public List<String> getAllFields() {
+        
+        List<String> allFields = new ArrayList<>();
+        
+        allFields.add( customerNameTextField.getText() );
+        allFields.add( customerAddressTextField.getText() );
+        allFields.add( customerAddressLineTwoTextField.getText() );
+        allFields.add( customerPostalCodeTextField.getText() );
+        allFields.add( customerPhoneTextField.getText() );
+        allFields.add( customerCityTextField.getText() );
+
+        allFields.add( customerCountryComboBox.getValue().toString() );
+        
+        return allFields;
+    }
+    
     public ObservableList<String> generateCountryList() throws SQLException {
         
         List<String> countryList = Query.getAllCountryNames( conn );
@@ -177,13 +222,6 @@ public class AddCustomerController implements Initializable {
         ObservableList<String> countryObservableList = FXCollections.observableArrayList(countryList);
         
         return countryObservableList;
-    }
-    
-    public void initSession(Session session) throws SQLException {
-
-        this.session = session;
-        this.currentUser = session.getCurrentUser();
-        
     }
     
 
