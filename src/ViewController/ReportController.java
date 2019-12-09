@@ -28,6 +28,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -55,6 +56,12 @@ public class ReportController implements Initializable {
     Session session;
     User currentUser;
     
+    //
+    //BEGIN METHODS
+    //
+    
+    //DATA METHODS
+    
     public void initSession(Session s) throws SQLException {
         //Summary:    Receive Session data and initiate the scene
         //Arguments:  The defined session
@@ -65,6 +72,26 @@ public class ReportController implements Initializable {
         System.out.println( "The current user is: " + currentUser.getUserName() );
 
         
+    }
+    
+    public ObservableMap<String, Customer> generateCustomerMap() throws SQLException {
+        
+        ObservableList<Customer> customerList = Query.getAllCustomers(conn);
+        ObservableMap<String, Customer> customerMap = FXCollections.observableHashMap();
+        
+        customerList.forEach( c -> customerMap.put( c.getCustomerName(), c ) );
+        
+        return customerMap;
+    }
+    
+    public ObservableMap<String, User> generateUserMap() throws SQLException {
+        
+        ObservableList<User> userList = Query.getAllUsers(conn);
+        ObservableMap<String, User> userMap = FXCollections.observableHashMap();
+        
+        userList.forEach( u -> userMap.put( u.getUserName(), u ) );
+        
+        return userMap;
     }
     
     public String printScheduleByUser(User user) throws SQLException {
@@ -171,7 +198,7 @@ public class ReportController implements Initializable {
         //Get all events 
         ObservableList<Event> allEvents = Query.getAllEvents(conn); //FIXME: Filter with SQL
         
-        //Filter events that have start in month
+        //Filter events that have customer
         Predicate<Event> customerFilter = (Event e) -> {
             int eventCustomerId = e.getCustomerId();
             if( eventCustomerId != customer.getCustomerid()) return true;
@@ -186,17 +213,18 @@ public class ReportController implements Initializable {
         for( Event e : allEvents ) {
 
             String timeAsString = e.getStart().toLocalDateTime()
-                    .format(DateTimeFormatter.ISO_DATE);
+                    .toString();
 
             eventDetails += timeAsString;
-            eventDetails += ": " + e.getDescription();
-            eventDetails += "\n\t" + Query.getCustomerById(e.getCustomerId(), conn).getCustomerName();
-            eventDetails += "\n";
+            eventDetails += ": " + e.getTitle();
+            eventDetails += "\n\t" + e.getDescription();
+            eventDetails += "\n\t" + e.getLocation();
+            eventDetails += "\n\n";
 
         }
 
-        result += "Upcoming Events for Customer " + customer.getCustomerName();
-        result += "\n";
+        result += "All events for " + customer.getCustomerName();
+        result += "\n\n";
 
         //Check if event details are empty
         if( eventDetails.contentEquals("") ) result += "No upcoming events.";
@@ -218,7 +246,9 @@ public class ReportController implements Initializable {
     
     public void consultantButtonPushed(ActionEvent event) throws SQLException {
         
-        User selectedUser = (User) consultantComboBox.getValue();
+        //Get String value from ComboBox and map it to the Customer object
+        String selectedUserName = (String) consultantComboBox.getValue();
+        User selectedUser = generateUserMap().get( selectedUserName );
         selectedUser.setTimezone( TimeZone.getTimeZone("UTC") );
         
         //Build report and send to text area
@@ -228,7 +258,9 @@ public class ReportController implements Initializable {
     
     public void apptCustomerButtonPushed(ActionEvent event) throws SQLException {
         
-        Customer selectedCustomer = (Customer) apptCustomerComboBox.getValue();
+        //Get String value from ComboBox and map it to the Customer object
+        String selectedCustomerName = (String) apptCustomerComboBox.getValue();
+        Customer selectedCustomer = generateCustomerMap().get( selectedCustomerName );
         
         //Build report and send to text area
         reportTextArea.setText( printApptByCustomer( selectedCustomer ) );
@@ -252,36 +284,17 @@ public class ReportController implements Initializable {
         window.show();
         
     }
-    
-    //
-    //BEGIN DATE METHODS
-    //
-    
-    public ObservableList<User> generateUsers() throws SQLException {
-        
-        ObservableList<User> allUsers = Query.getAllUsers(conn);
-        
-        return allUsers;
-        
-    }
-    
-    public ObservableList<Customer> generateCustomers() throws SQLException {
-        
-        ObservableList<Customer> customerList = Query.getAllCustomers(conn);
-        
-        return customerList;
-    }
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         
         try {
             //Populate User list
-            consultantComboBox.setItems( generateUsers() ); 
+            consultantComboBox.setItems( FXCollections.observableArrayList(generateUserMap().keySet() ) ); 
             consultantComboBox.getSelectionModel().selectFirst();
             
             //Populate City list
-            apptCustomerComboBox.setItems( generateCustomers() ); 
+            apptCustomerComboBox.setItems( FXCollections.observableArrayList( generateCustomerMap().keySet() ) ); 
             apptCustomerComboBox.getSelectionModel().selectFirst();
             
         } catch (SQLException ex) {
