@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+
+<AnchorPane id="AnchorPane" prefHeight="600.0" prefWidth="400.0" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/11.0.1" fx:controller="ViewController.ReportController">
+   <children>
+      <TextArea fx:id="reportTextArea" layoutX="5.0" layoutY="66.0" prefHeight="301.0" prefWidth="390.0" wrapText="true" />
+      <VBox layoutX="1.0" layoutY="367.0" prefHeight="210.0" prefWidth="400.0">
+         <children>
+            <HBox alignment="CENTER_LEFT" prefHeight="70.0" prefWidth="200.0">
+               <children>
+                  <Label prefHeight="46.0" prefWidth="200.0" text="Appointment Types By Month" wrapText="true">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </Label>
+                  <DatePicker fx:id="apptTypeDatePicker" prefHeight="27.0" prefWidth="120.0" promptText="Month" />
+                  <Button fx:id="apptTypeButton" mnemonicParsing="false" onAction="#apptTypeButtonPushed" prefHeight="27.0" prefWidth="40.0" text="OK" />
+               </children>
+            </HBox>
+            <HBox alignment="CENTER_LEFT" prefHeight="70.0" prefWidth="200.0">
+               <children>
+                  <Label prefHeight="46.0" prefWidth="200.0" text="Print Schedule For Consultant" wrapText="true">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </Label>
+                  <ComboBox fx:id="consultantComboBox" prefHeight="27.0" prefWidth="120.0" promptText="Consultant" />
+                  <Button fx:id="consultantButton" mnemonicParsing="false" onAction="#consultantButtonPushed" prefWidth="40.0" text="OK" />
+               </children>
+            </HBox>
+            <HBox alignment="CENTER_LEFT" prefHeight="70.0" prefWidth="200.0">
+               <children>
+                  <Label prefHeight="46.0" prefWidth="200.0" text="Appointments By Customer" wrapText="true">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </Label>
+                  <ComboBox fx:id="apptCustomerComboBox" prefWidth="120.0" promptText="Customer" />
+                  <Button fx:id="apptCityButton" mnemonicParsing="false" onAction="#apptCustomerButtonPushed" prefWidth="40.0" text="OK" />
+               </children>
+            </HBox>
+            <Button fx:id="backButton" mnemonicParsing="false" onAction="#backButtonPushed" text="Back" />
+         </children>
+         <padding>
+            <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+         </padding>
+      </VBox>
+      <HBox alignment="CENTER" layoutY="3.0" prefHeight="77.0" prefWidth="401.0">
+         <children>
+            <Label text="Reports" />
+         </children>
+      </HBox>
+   </children>
+</AnchorPane>

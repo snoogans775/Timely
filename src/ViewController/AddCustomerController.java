@@ -35,6 +35,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 public class AddCustomerController implements Initializable {
     
@@ -152,11 +153,13 @@ public class AddCustomerController implements Initializable {
         } catch (EventException e) {
             
             Alert a = new Alert(AlertType.ERROR);
+            a.initStyle(StageStyle.UTILITY);
             a.setContentText( e.getMessage() );
             a.show();
         } catch (NullPointerException e) {
             
             Alert a = new Alert(AlertType.ERROR);
+            a.initStyle(StageStyle.UTILITY);
             a.setContentText("Please provide a country.");
             a.show();
         }

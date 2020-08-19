@@ -1,6 +1,5 @@
 package Model;
 
-import CalendarApp.Lambda;
 import DB.Query;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -55,6 +54,13 @@ public class Appointment extends Event {
         this.lastUpdateBy = lastUpdateBy;
     }
     
+    //Special constructor for time functions
+    //Intended to produce brevity
+    public Appointment(Timestamp start, Timestamp end) {
+        this.start = start;
+        this.end = end;
+    }
+    
     public String getAttributesAsSQL() {
         List<String> list = Arrays.asList(
             //Integer.toString(appointmentid), //Id is AUTO_INCREMENT in the database
@@ -88,7 +94,7 @@ public class Appointment extends Event {
         return result;
     }
     
-    public static boolean checkForConflict(Event e, User currentUser, Connection conn) throws SQLException {
+    public static boolean checkForConflict(Event event, User currentUser, Connection conn) throws SQLException {
         
         boolean result = false;
         
@@ -106,16 +112,18 @@ public class Appointment extends Event {
                 && i.getStart().before( t.getEnd() ) ) return true; //End Overlap
             
             if( i.getStart().before( t.getStart() )
-                && i.getEnd().after( t.getEnd() ) ) return true; //Enveloped times
+                && i.getEnd().after( t.getEnd() ) ) return true; //Enveloped time
+            
+            if( i.getStart().equals(t.getStart() ) ) return true; //Concurrent time
             
             else return false;
         };
         
         //Get all events for user
         ObservableList<Event> allEvents = Query.getAllEventsByUserId(currentUser, conn);
-
-        for (Event j : allEvents) {
-            if( tester.test(e, j) ) result = true;
+        
+        for (Event e : allEvents) {
+            if( tester.test(event, e) ) result = true;
         }
         
         return result;
@@ -145,30 +153,41 @@ public class Appointment extends Event {
         return result;
     }
     
-    public static Timestamp adjustTimeZone(Timestamp timestamp, User user) {
+    
+    public static Timestamp convertToTimestamp(LocalDateTime time, User user) {
         
         //Summary: Adds TimeZone offset to all event start and end times
-        //Arguments: Timestamp and User
-        //Returns: Date adjusted to User timezone
+        //Arguments: LocalDateTime and User
+        //Returns: Date adjusted to User timezone as an offset from UTC
         
-        TimeZone.setDefault( user.getTimezone() );
-        
-        //Create date object
-        Date date = new Date( timestamp.getTime() );
-        
-        //Create calendar object
-        Calendar userCalendar = Calendar.getInstance(); 
+        //The user ZoneId will be applied to startTime and endTime
+        ZoneId userZoneId= user.getTimezone().toZoneId();
 
-        //Set date in user timezone      
-        userCalendar.setTime(date);
+        //Convert LocalDateTime to ZonedDateTime objects
+        ZonedDateTime zonedTime = time.atZone(userZoneId);
+        zonedTime = ZonedDateTime.ofInstant(zonedTime.toInstant(), ZoneId.of("UTC"));
+
+        //Convert all objects to sql.Timestamp
+        //The offset from UTC will be baked in to this value
+        Timestamp timestamp = Timestamp.valueOf( zonedTime.toLocalDateTime() );
         
-        //Convert to timestamp
-        Timestamp time = Timestamp.from( userCalendar.toInstant() );
-        
-        
-        return time;
-        
+        return timestamp;
+
     }
+    
+    public static ZonedDateTime convertToZonedDateTime(Timestamp timestamp, User user) {
+        
+        //Summary:   Converts UTC timestamp to ZonedDateTime object with user TimeZone
+        //Arguments: Timestamp from mySQL and User
+        //Returns:   ZonedTimeStamp in user's correct timezone
+        
+        ZoneId userZoneId = user.getTimezone().toZoneId();
+
+        ZonedDateTime zonedTime = timestamp.toLocalDateTime().atZone( ZoneId.of("UTC") );
+        zonedTime = ZonedDateTime.ofInstant(zonedTime.toInstant(), userZoneId);
+        
+        return zonedTime;
+}
     
     
 }

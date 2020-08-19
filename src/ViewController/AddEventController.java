@@ -6,7 +6,6 @@
 package ViewController;
 
 import CalendarApp.EventException;
-import CalendarApp.Lambda;
 import DB.Query;
 import DB.Session;
 import DB.mySQLConnection;
@@ -21,17 +20,13 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.*;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.ResourceBundle;
-import java.util.function.BiPredicate;
-import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -42,6 +37,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 public class AddEventController implements Initializable {
     
@@ -112,11 +108,14 @@ public class AddEventController implements Initializable {
     //BEGIN CONTROL METHODS
     //
     
-    public ObservableList<Customer> generateCustomers() throws SQLException {
+    public ObservableMap<String, Customer> generateCustomerMap() throws SQLException {
         
         ObservableList<Customer> customerList = Query.getAllCustomers(conn);
+        ObservableMap<String, Customer> customerMap = FXCollections.observableHashMap();
         
-        return customerList;
+        customerList.forEach( c -> customerMap.put( c.getCustomerName(), c ) );
+        
+        return customerMap;
     }
     
     public void saveButtonPushed(ActionEvent event) throws IOException, SQLException {
@@ -177,7 +176,7 @@ public class AddEventController implements Initializable {
     public void addEvent() throws NullPointerException, SQLException {
         
         try {
-        
+
             //Create objects for Date and Time components
             LocalDateTime startDateTime;
             LocalDateTime endDateTime;
@@ -192,30 +191,27 @@ public class AddEventController implements Initializable {
             eventDuration = (Duration) eventDurationComboBox.getValue();
             endDateTime = startDateTime.plus( eventDuration );
             
+            //EXCEPTION HANDLING
+            //Using Local Time for all exceptions
+            Appointment checkAppt = new Appointment(
+                    Timestamp.valueOf( startDateTime ), 
+                    Timestamp.valueOf( endDateTime )
+            );
+            
+            if ( checkForBusinessHours(checkAppt) ) throw new EventException(
+                    "Please schedule within business hours.");
+
+            //Check for scheduling conflicts
+            if ( checkForConflict(checkAppt, currentUser, conn) ) throw new EventException(
+                    "Schedule conflict found. Add event failed.");
+            
             //TIMEZONE CONVERSION
             Timestamp startTimestamp = convertToTimestamp(startDateTime, currentUser);
             Timestamp endTimestamp = convertToTimestamp(endDateTime, currentUser);
             
-            /*
-            //The user ZoneId will be applied to startTime and endTime
-            ZoneId userZoneId= currentUser.getTimezone().toZoneId();
-            
-            //Convert LocalDateTime to ZonedDateTime objects
-            ZonedDateTime zonedStartTime = startDateTime.atZone(userZoneId);
-            zonedStartTime = ZonedDateTime.ofInstant(zonedStartTime.toInstant(), ZoneId.of("UTC"));
-            
-            ZonedDateTime zonedEndTime = endDateTime.atZone(userZoneId);
-            zonedEndTime = ZonedDateTime.ofInstant(zonedEndTime.toInstant(), ZoneId.of("UTC"));
-            
-            //Convert all objects to sql.Timestamp
-            //The offset from UTC will be baked in to this value
-            Timestamp startTime = Timestamp.valueOf( zonedStartTime.toLocalDateTime() );
-            Timestamp endTime = Timestamp.valueOf( zonedEndTime.toLocalDateTime() );
-            
-            
-            */
-            //Get customer id from selected object
-            Customer selectedCustomer = (Customer)eventCustomerComboBox.getValue();
+            //Get customer from selected String
+            String selectedCustomerName = (String) eventCustomerComboBox.getValue();
+            Customer selectedCustomer = generateCustomerMap().get( selectedCustomerName );
 
             Appointment appt = new Appointment(
                 0,
@@ -234,26 +230,12 @@ public class AddEventController implements Initializable {
                 Timestamp.from( Instant.now()  ),
                 currentUser.getUserName()
             );
-            
-            //Use partial constructor to check business hours
-            //FIXME: Change Event.checkForBusinessHours to accept two LocalDateTimes instead of Even object
-            Appointment checkAppt = new Appointment(
-                    Timestamp.valueOf(startDateTime), 
-                    Timestamp.valueOf(endDateTime) 
-            );
-            if ( checkForBusinessHours(checkAppt) ) throw new EventException(
-                    "Please schedule within business hours."
-            );
-            
-            //Check for scheduling conflicts
-            if ( checkForConflict(appt, currentUser, conn) ) throw new EventException(
-                    "Schedule conflict found. Add event failed."
-            );
-            else Query.addAppointment(appt, conn);
 
+            Query.addAppointment(appt, conn);
 
         } catch (EventException e) {
             Alert a = new Alert(AlertType.ERROR);
+            a.initStyle(StageStyle.UTILITY);
             a.setContentText( e.getMessage() );
             a.show();
         }
@@ -265,9 +247,14 @@ public class AddEventController implements Initializable {
         
         try {
             
+            ObservableList<String> customerNames;
+            customerNames = FXCollections.observableArrayList( generateCustomerMap().keySet() );
+            //Sort List by name alphabetically
+            FXCollections.sort(customerNames, (a,b) -> a.compareTo( b ) );
+            
             eventStartTimeComboBox.setItems( generateTimes() );
             eventDurationComboBox.setItems( generateDurations() );
-            eventCustomerComboBox.setItems( generateCustomers() );
+            eventCustomerComboBox.setItems( customerNames );
             
         } catch (SQLException ex) {
             

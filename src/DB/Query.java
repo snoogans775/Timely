@@ -21,15 +21,50 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.ToIntBiFunction;
 
 
 public class Query {
+    
+    Connection conn;
 
     //BEGIN METHODS
+    
+    //SETTERS
+    public void setConnection(Connection conn) {
+        
+        this.conn = conn;
+    }
+    
+    //
+    //FUNCTIONAL METHODS
+    //
+    
+    //Summary: A method to apply a lambda expression to an iterable list
+    //Arguments: This method accepts an ObservableList and a LocalDateTime
+    //Returns: The lambda expression is a BiConsumer of two LocalDateTime objects
+
+    public static void listAndTimeConsumer(ObservableList<Event> list, LocalDateTime d, BiConsumer<Event, LocalDateTime> test) {
+        
+        for( Event e : list ) {
+            test.accept(e, d);
+        }
+    }
+    
+    public static void listAndEventConsumer(ObservableList<Event> list, Event eventTwo, ToIntBiFunction<Event, Event> test) {
+        
+        list.forEach((eventOne) -> {
+            test.applyAsInt(eventOne, eventOne);
+        });
+    }
     
     //
     //EVENT METHODS
@@ -44,7 +79,46 @@ public class Query {
         ResultSet rs = stmt.executeQuery(sql);
         
         while( rs.next() ) {
-            //FIXME: Convert to appointment
+            eventList.add( new Appointment
+                (
+                rs.getInt("appointmentid"),
+                rs.getInt("customerId"),
+                rs.getInt("userId"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getString("location"),
+                rs.getString("contact"),
+                rs.getString("type"),
+                rs.getString("url"),
+                rs.getTimestamp("start"),
+                rs.getTimestamp("end"),
+                rs.getTimestamp("createDate"),
+                rs.getString("createdBy"),
+                rs.getTimestamp("lastUpdate"),
+                rs.getString("lastUpdateBy")
+                )
+            );
+            
+        }
+        
+        //Convert from UTC to user TimeZone
+        eventList.forEach( (Event e) -> {
+            e.convertToLocalTime(user);
+        });
+        
+        return eventList;
+
+    }
+    
+    public static ObservableList<Event> getAllEvents(Connection conn) throws SQLException {
+        
+        ObservableList<Event> eventList = FXCollections.observableArrayList();
+        
+        String sql = "SELECT * FROM appointment";
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery(sql);
+        
+        while( rs.next() ) {
             eventList.add( new Appointment
                 (
                 rs.getInt("appointmentid"),
@@ -562,6 +636,37 @@ public class Query {
         }
         
         return address;
+
+    }
+    
+    //USER METHODS
+    
+        
+    public static ObservableList<User> getAllUsers(Connection conn) throws SQLException {
+        
+        ObservableList<User> userList = FXCollections.observableArrayList();
+        
+        String sql = "SELECT * FROM user";
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery(sql);
+        
+        while( rs.next() ) {
+            userList.add( new User
+                (
+                rs.getInt("userid"),
+                rs.getString("userName"),
+                rs.getString("password"),
+                rs.getInt("active"),
+                rs.getTimestamp("createDate"),
+                rs.getString("createdBy"),
+                rs.getTimestamp("lastUpdate"),
+                rs.getString("lastUpdateBy")
+                )
+            );
+            
+        }
+        
+        return userList;
 
     }
 

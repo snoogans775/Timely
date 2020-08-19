@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/DB/Session.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Model/Address.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/ViewController/AddEventController.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/DB/Query.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/CalendarApp/EventException.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Resource/Nat_es.properties</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Model/Appointment.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/ViewController/EventController.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Model/Event.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/nbproject/build-impl.xml</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Resource/Nat_en.properties</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/CalendarApp/Lambda.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Model/Logger.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Model/Person.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/DB/mySQLConnection.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/Model/Customer.java</file>
+            <file>file:/Users/kevin/NetBeansProjects/C195-FredericksKevin/src/ViewController/EditEventController.java</file>
+        </group>
+    </open-files>
+</project-private>

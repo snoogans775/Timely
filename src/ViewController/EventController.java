@@ -29,12 +29,12 @@ import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 public class EventController implements Initializable {
 
     @FXML TableView eventTableView;
     @FXML TableColumn<Event, String> eventTitleColumn;
-    @FXML TableColumn<Event, Integer> eventCustomerColumn;
     @FXML TableColumn<Event, String> eventStartColumn;
     @FXML TableColumn<Event, String> eventEndColumn;
     
@@ -51,6 +51,7 @@ public class EventController implements Initializable {
     //Navigation bar
     @FXML Button eventViewButton;
     @FXML Button customerViewButton;
+    @FXML Button reportViewButton;
     
     //Get connection object for all other scenes
     Connection conn = mySQLConnection.getConnection();
@@ -87,9 +88,19 @@ public class EventController implements Initializable {
             ObservableList<Event> appointments;
             appointments = Query.getAllEventsByUserId(currentUser, conn); //Timezone conversion included
 
-            eventTableView.setItems( appointments );
+            updateTableView( appointments );
             
         } else System.out.println("No session found.");
+    }
+    
+    public void updateTableView(ObservableList<Event> appointments) throws SQLException {
+        //Summary: Loads events for user into tableview
+        //Arguments: The current user
+        //Returns: void
+
+        eventTableView.setItems( appointments );
+        
+
     }
 
     public static void alertUpcomingEvent(User user, Duration duration, Connection conn) throws SQLException {
@@ -119,7 +130,8 @@ public class EventController implements Initializable {
             
             if( eStart.isAfter(now) && eStart.isBefore(limit) ) {
                 Alert a = new Alert(AlertType.INFORMATION);
-                a.setContentText("Upcoming Appointment at " + e.toString());
+                a.initStyle(StageStyle.UTILITY);
+                a.setContentText("Upcoming Appointment at " + e.getStart().toString());
                 a.show();
             };
         });
@@ -148,6 +160,8 @@ public class EventController implements Initializable {
     
     public void editButtonPushed(ActionEvent event) throws IOException, SQLException {
         
+        try {
+            
         //Get selected customer
         Appointment selectedAppointment = (Appointment) eventTableView.getSelectionModel().getSelectedItem();
         
@@ -164,6 +178,13 @@ public class EventController implements Initializable {
         Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
         window.setScene(addParentScene);
         window.show();
+        
+        } catch (NullPointerException e) {
+            Alert a = new Alert(AlertType.INFORMATION);
+            a.initStyle(StageStyle.UTILITY);
+            a.setContentText("Please select an appointment.");
+            a.show();
+        }
           
     }
     
@@ -205,7 +226,7 @@ public class EventController implements Initializable {
         appointments.removeIf( yearFilter );
         
         //Update tablevIew
-        eventTableView.setItems(appointments);
+        updateTableView(appointments);
     }
     
     public void weekButtonPushed(ActionEvent event) throws IOException, SQLException {
@@ -216,7 +237,7 @@ public class EventController implements Initializable {
         //Comment: This code is very verbose to avoid complexity. The predicates
         //can be combined in to on e filter to reduce the method footprint.
         
-        //Get selected month from comboBox
+        //Get selected month from ComboBox
         LocalDate weekDate =  weekViewDatePicker.getValue();
 
         //Create Predicates for testing date values
@@ -234,13 +255,13 @@ public class EventController implements Initializable {
         //Get appointments from mySQL database
         ObservableList<Event> appointments = Query.getAllEventsByUserId(currentUser, conn);
         
-        //Remove appointments where month != DatePicker month
+        //Remove appointments where date != DatePicker week
         appointments.removeIf( weekFilter );
         appointments.removeIf( monthFilter );
         appointments.removeIf( yearFilter );
         
         //Update tablevIew
-        eventTableView.setItems(appointments);
+        updateTableView(appointments);
     }
     
     public void customerButtonPushed(ActionEvent event) throws IOException, SQLException {
@@ -260,6 +281,23 @@ public class EventController implements Initializable {
         
     }
     
+    public void reportViewButtonPushed(ActionEvent event) throws IOException, SQLException {
+
+        //Change Scene to report view
+        FXMLLoader loader = new FXMLLoader();
+        loader.setLocation( getClass().getResource("/ViewController/Report.fxml") );
+        Parent parent = loader.load();
+        Scene addParentScene = new Scene(parent);
+        
+        ReportController controller = loader.getController();
+        controller.initSession( session );
+        
+        Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
+        window.setScene(addParentScene);
+        window.show();        
+        
+    }
+    
     //
     //TIME METHODS
     //
@@ -272,8 +310,9 @@ public class EventController implements Initializable {
        
         //Create a calendar object from instant
         Calendar calendar = Calendar.getInstance();
-        calendar.set(date.getDayOfYear(), date.getDayOfMonth(), date.getDayOfMonth() );
+        calendar.set(date.getYear(), date.getMonthValue(), date.getDayOfMonth() );
         
+        calendar.setMinimalDaysInFirstWeek(0); //Default is 4
         int weekOfMonth = calendar.get(Calendar.WEEK_OF_MONTH);
         
         return weekOfMonth;
@@ -286,7 +325,6 @@ public class EventController implements Initializable {
         
         //Create columns
         eventTitleColumn.setCellValueFactory( new PropertyValueFactory<>("title"));
-        eventCustomerColumn.setCellValueFactory( new PropertyValueFactory<>("customerId"));
         eventStartColumn.setCellValueFactory( new PropertyValueFactory<>("start"));
         eventEndColumn.setCellValueFactory( new PropertyValueFactory<>("end"));
         

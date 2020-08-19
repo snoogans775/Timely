@@ -5,6 +5,9 @@
  */
 package ViewController;
 
+import DB.Session;
+import DB.mySQLConnection;
+import static DB.mySQLConnection.conn;
 import java.net.URL;
 import java.time.*;
 import java.util.*;
@@ -20,9 +23,9 @@ import java.sql.*;
 import java.sql.SQLException;
 
 import Model.*;
-import static Model.mySQLConnection.conn;
-import java.awt.Color;
 import java.io.IOException;
+import javafx.scene.control.Alert.AlertType;
+import javafx.stage.StageStyle;
 
 /**
  *
@@ -33,26 +36,30 @@ public class LoginController implements Initializable {
     @FXML TextField loginUsernameTextField;
     @FXML TextField loginPasswordTextField;
     
-    @FXML Label welcomeLabel;
+    @FXML ToggleGroup language;
+    @FXML RadioButton englishRadioButton;
+    @FXML RadioButton spanishRadioButton;
+    @FXML RadioButton frenchRadioButton;
     
+    @FXML Label welcomeLabel;
     @FXML Button loginSubmitButton;
+    @FXML Button spanishButton;
     
     public ResourceBundle localResourceBundle;
     
     String errorMessage = "Validation failed. Please try a different username or password.";
     String confirmationMessage = "Login successful.";
     
+    //Get connection object for all other scenes
+    //Connection conn = mySQLConnection.getConnection();
+    
     Session session;
     
+//
+    //BEGIN METHODS
+    //
     
-    public void getTimeZone() {
-        Calendar cal = Calendar.getInstance();
-        //
-        TimeZone timeZone = cal.getTimeZone();
-        String timeZoneText = timeZone.getDisplayName();
-        
-        welcomeLabel.setText("Your timezone is " + timeZoneText);
-    }
+    //LANGUAGE RESOURCE METHODS
     
     public ResourceBundle getLanguageResource() {
         ResourceBundle rb;
@@ -62,22 +69,69 @@ public class LoginController implements Initializable {
  
     }
     
-    public void loadEventsView(ActionEvent event) throws IOException, SQLException {
+    public void initLanguage( String language ) {
+        // Localization for text prompt
+        // Session is not used until login is successful
+        if(     language.equals("es")
+             || language.equals("fr")
+             || language.equals("en") ) 
+        {
+            ResourceBundle rb = ResourceBundle.getBundle("Resource/Nat_" + language);
+            setLanguageResource( rb );
+            
+        }
+    }
+    
+    public void setLanguageResource(ResourceBundle rb) {
+        loginUsernameTextField.setPromptText( rb.getString("username"));
+        loginPasswordTextField.setPromptText( rb.getString("password"));
+        loginSubmitButton.setText( rb.getString("login"));
+
+        //Error handling
+        errorMessage = rb.getString("validationError");
+        confirmationMessage = rb.getString("validationSuccess");
+    }
+    
+    public void englishButtonPushed(ActionEvent event)  {
         
-        validateLogin();
+        ResourceBundle rb = ResourceBundle.getBundle("Resource/Nat_en");
+        setLanguageResource( rb );
         
-        if (validateLogin()) {
+        initLanguage( "en" );
+    }
+    
+    public void spanishButtonPushed(ActionEvent event)  {
+        
+        ResourceBundle rb = ResourceBundle.getBundle("Resource/Nat_es");
+        setLanguageResource( rb );
+        
+        initLanguage( "es" );
+    }
+    
+public void frenchButtonPushed(ActionEvent event)  {
+        
+        ResourceBundle rb = ResourceBundle.getBundle("Resource/Nat_fr");
+        setLanguageResource( rb );
+        
+        initLanguage( "fr" );
+    }
+    
+    public void loadEventView(ActionEvent event) throws IOException, SQLException {
+        
+        if ( validateLogin() ) {
 
-        //Change Scene to event view
-        FXMLLoader loader = new FXMLLoader();
-        loader.setLocation( getClass().getResource("/ViewController/Event.fxml") );
-        Parent parent = loader.load();
+            //Change Scene to event view
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation( getClass().getResource("/ViewController/Event.fxml") );
+            Parent parent = loader.load();
+            Scene addParentScene = new Scene(parent);
 
-        Scene addParentScene = new Scene(parent);
+            EventController controller = loader.getController();
+            controller.initSession( session );
 
-        Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
-        window.setScene(addParentScene);
-        window.show();
+            Stage window = (Stage) ((Node)event.getSource()).getScene().getWindow();
+            window.setScene(addParentScene);
+            window.show();
         }
           
     }
@@ -103,28 +157,39 @@ public class LoginController implements Initializable {
                     rs.getString("userName"),
                     rs.getString("password"),
                     rs.getInt("active"),
-                    rs.getTimestamp("createDate").toLocalDateTime(),
+                    rs.getTimestamp("createDate"),
                     rs.getString("createdBy"),
-                    rs.getTimestamp("lastUpdate").toLocalDateTime(),
+                    rs.getTimestamp("lastUpdate"),
                     rs.getString("lastUpdateBy")
                     )
                 );
+                
+                //Log login
+                Logger.recordLogin( session.getCurrentUser() );
+                
+                //Set timezone
+                session.getCurrentUser().setTimezone( TimeZone.getDefault() );
 
                 //Set text to green color
                 welcomeLabel.setStyle("-fx-text-fill: #009900");
-                
+
                 //Notiy user before loading next scene
                 String currentUserName = session.getCurrentUser().getUserName();
                 welcomeLabel.setText(confirmationMessage + " Welcome " + currentUserName + ".");
-                
+
                 return true;
-                
+
             }  else  throw new SQLException("");
           
         } catch (SQLException e) {
-            welcomeLabel.setStyle("-fx-text-fill: #990000");
-            welcomeLabel.setText(errorMessage);
+            Alert a = new Alert(AlertType.ERROR);
+            a.setContentText( errorMessage );
+            a.initStyle(StageStyle.UTILITY);
+            a.show();
             
+            //Add message to welcomeLabel
+            welcomeLabel.setText(errorMessage);
+
             return false;
         }
     }
@@ -132,7 +197,10 @@ public class LoginController implements Initializable {
     public void initialize(URL url, ResourceBundle rb) {
         
         //New session to hold current user and locale
-        session = new Session();
+        session = new Session(conn);
+        
+        //Display user timezone
+        welcomeLabel.setText("Your current timezone is: " + TimeZone.getDefault().getDisplayName() );
         
         //Initialize Database connection
         try {
@@ -141,20 +209,8 @@ public class LoginController implements Initializable {
             System.out.println(ex.getMessage());
         }
 
-        // Localization for text prompt
-        // Session is not used until login is successful
-        if(     Locale.getDefault().getLanguage().equals("es")
-             || Locale.getDefault().getLanguage().equals("fr") ) 
-        {
-            loginUsernameTextField.setPromptText( getLanguageResource().getString("username"));
-            loginPasswordTextField.setPromptText( getLanguageResource().getString("password"));
-            loginSubmitButton.setText( getLanguageResource().getString("login"));
-            
-            //Error handling
-            errorMessage = getLanguageResource().getString("validationError");
-            confirmationMessage = getLanguageResource().getString("validationSuccess");
-        }
-        
+        initLanguage( Locale.getDefault().getLanguage() );
+         
     }    
     
 }
